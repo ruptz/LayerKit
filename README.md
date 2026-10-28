@@ -34,6 +34,10 @@ this to the app's `src-tauri/.cargo/config.toml` (gitignored):
 layer-speech = { path = "../../LayerKit/crates/layer-speech" }
 ```
 
+While the patch is on, Cargo drops LayerKit's `source` line from the app's
+`Cargo.lock`. Don't commit that: tag LayerKit, bump the tag in the app, and
+build once with the patch off so the lock pins the tag again.
+
 ## Testing
 
 ```bash
