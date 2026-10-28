@@ -1,0 +1,12 @@
+[package]
+name = "layer-secrets"
+description = "Secrets for the Layer apps, in the system keystore: Credential Manager, Keychain or the Secret Service."
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The same keystores ChatterLayer has always used for its bot token.
+keyring = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service", "crypto-rust"] }

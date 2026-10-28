@@ -5,6 +5,7 @@ Rust crates.
 
 | Crate | What |
 |---|---|
+| `layer-secrets` | Secrets (app keys, sign-ins) in the system keystore: Windows Credential Manager, the macOS Keychain, or the Secret Service on Linux, with a fallback to the app's files where there's none |
 | `layer-speech` | Local speech-to-text: Moonshine, Parakeet, Whisper and Vosk engines, the microphone gate, and installed-model discovery |
 | `layer-spotify` | Spotify: sign-in, what's playing, track lookup and search, and the player (queue, play, skip, previous, pause, resume, volume) |
 | `layer-twitch` | Twitch: device-code sign-in for a channel and an optional bot, Helix calls, chat replies, channel points, and the EventSub socket |
@@ -14,10 +15,24 @@ Rust crates.
 Apps depend on it by tag:
 
 ```toml
-layer-speech = { git = "https://github.com/ruptz/LayerKit", tag = "v0.3.0" }
-layer-spotify = { git = "https://github.com/ruptz/LayerKit", tag = "v0.3.0" }
-layer-twitch = { git = "https://github.com/ruptz/LayerKit", tag = "v0.3.0" }
+layer-secrets = { git = "https://github.com/ruptz/LayerKit", tag = "v0.4.0" }
+layer-speech = { git = "https://github.com/ruptz/LayerKit", tag = "v0.4.0" }
+layer-spotify = { git = "https://github.com/ruptz/LayerKit", tag = "v0.4.0" }
+layer-twitch = { git = "https://github.com/ruptz/LayerKit", tag = "v0.4.0" }
 ```
+
+### layer-secrets
+
+Keep secrets out of the app's JSON files. `Vault::new("JammyLayer")` checks
+once whether the keystore can be used. Reading a file, pass each secret
+through `vault.adopt(name, &mut value)`: a value still in the file moves into
+the keystore (rewrite the file when it returns true), an empty one is filled
+from it. Writing, pass each through `vault.keep(name, &mut value)`, which
+blanks the file's copy once the keystore has it. Without a keystore both leave
+the value alone, so the file keeps it as before. JammyLayer's
+`src-tauri/src/settings.rs` is the worked example.
+
+On Linux it needs `libdbus-1-dev` and `pkg-config` to build.
 
 ### layer-speech
 
@@ -61,6 +76,7 @@ this to the app's `src-tauri/.cargo/config.toml` (gitignored):
 ```toml
 [patch."https://github.com/ruptz/LayerKit"]
 layer-speech = { path = "../../LayerKit/crates/layer-speech" }
+layer-secrets = { path = "../../LayerKit/crates/layer-secrets" }
 layer-spotify = { path = "../../LayerKit/crates/layer-spotify" }
 layer-twitch = { path = "../../LayerKit/crates/layer-twitch" }
 ```
