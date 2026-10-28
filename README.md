@@ -6,6 +6,7 @@ Rust crates.
 | Crate | What |
 |---|---|
 | `layer-speech` | Local speech-to-text: Moonshine, Parakeet, Whisper and Vosk engines, the microphone gate, and installed-model discovery |
+| `layer-spotify` | Spotify: sign-in, what's playing, track lookup and search, and the player (queue, play, skip, previous, pause, resume, volume) |
 | `layer-twitch` | Twitch: device-code sign-in for a channel and an optional bot, Helix calls, chat replies, channel points, and the EventSub socket |
 
 ## Using it
@@ -13,8 +14,9 @@ Rust crates.
 Apps depend on it by tag:
 
 ```toml
-layer-speech = { git = "https://github.com/ruptz/LayerKit", tag = "v0.2.0" }
-layer-twitch = { git = "https://github.com/ruptz/LayerKit", tag = "v0.2.0" }
+layer-speech = { git = "https://github.com/ruptz/LayerKit", tag = "v0.3.0" }
+layer-spotify = { git = "https://github.com/ruptz/LayerKit", tag = "v0.3.0" }
+layer-twitch = { git = "https://github.com/ruptz/LayerKit", tag = "v0.3.0" }
 ```
 
 ### layer-speech
@@ -29,6 +31,17 @@ layer_speech::init(layer_speech::App {
 });
 ```
 
+### layer-spotify
+
+The app implements `Host` (its Spotify app's keys and redirect URI, the scopes
+to ask for, where the sign-in is saved) and passes a `Config` (its name). It
+opens `authorize_url()`, and hands the code its redirect receives to
+`exchange_code()`. Ask for `CONTROL_SCOPE` alongside `READ_SCOPES` to change
+playback; most player calls also need Spotify Premium, and say so when it's
+missing. Anything not wrapped is one `spotify.call(method, path, body)` away.
+JammyLayer's `src-tauri/src/spotify.rs` is the worked example; polling stays in
+the app.
+
 ### layer-twitch
 
 The app implements `Host` (its Twitch app's keys, where the sign-in is saved,
@@ -38,7 +51,7 @@ EventSub subscriptions). `Twitch::new` returns the client and a channel of
 one `twitch.helix(seat, method, path, body)` away. JammyLayer's
 `src-tauri/src/twitch.rs` is the worked example.
 
-Each app keeps its own sign-in for now.
+Each app keeps its own Spotify and Twitch sign-ins for now.
 
 ## Working on it beside an app
 
@@ -48,6 +61,7 @@ this to the app's `src-tauri/.cargo/config.toml` (gitignored):
 ```toml
 [patch."https://github.com/ruptz/LayerKit"]
 layer-speech = { path = "../../LayerKit/crates/layer-speech" }
+layer-spotify = { path = "../../LayerKit/crates/layer-spotify" }
 layer-twitch = { path = "../../LayerKit/crates/layer-twitch" }
 ```
 

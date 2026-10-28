@@ -1,0 +1,15 @@
+[package]
+name = "layer-spotify"
+description = "Spotify for the Layer apps: sign-in, what's playing, and player control."
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["sync"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+getrandom = "0.3"
