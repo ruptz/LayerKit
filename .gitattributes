@@ -1,0 +1,9 @@
+# Text is stored as LF and checked out as LF everywhere, so a Windows checkout
+# (core.autocrlf=true) doesn't rewrite every file to CRLF.
+* text=auto eol=lf
+
+*.dll binary
+*.so binary
+*.dylib binary
+*.onnx binary
+*.wav binary

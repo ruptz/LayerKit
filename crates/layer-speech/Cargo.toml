@@ -1,0 +1,17 @@
+[package]
+name = "layer-speech"
+description = "Local speech-to-text for the Layer apps: engines, mic gate, installed models."
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+libloading = "0.8"
+# Loaded from onnxruntime.dll at runtime: the static build needs a newer
+# MSVC standard library than some machines (and VS 2019) link against.
+ort = { version = "=2.0.0-rc.13", default-features = false, features = ["std", "load-dynamic", "api-23"] }
+rustfft = "6"
