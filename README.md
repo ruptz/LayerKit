@@ -15,10 +15,10 @@ Rust crates.
 Apps depend on it by tag:
 
 ```toml
-layer-secrets = { git = "https://github.com/ruptz/LayerKit", tag = "v0.4.0" }
-layer-speech = { git = "https://github.com/ruptz/LayerKit", tag = "v0.4.0" }
-layer-spotify = { git = "https://github.com/ruptz/LayerKit", tag = "v0.4.0" }
-layer-twitch = { git = "https://github.com/ruptz/LayerKit", tag = "v0.4.0" }
+layer-secrets = { git = "https://github.com/ruptz/LayerKit", tag = "v0.5.0" }
+layer-speech = { git = "https://github.com/ruptz/LayerKit", tag = "v0.5.0" }
+layer-spotify = { git = "https://github.com/ruptz/LayerKit", tag = "v0.5.0" }
+layer-twitch = { git = "https://github.com/ruptz/LayerKit", tag = "v0.5.0" }
 ```
 
 ### layer-secrets

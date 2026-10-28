@@ -890,14 +890,14 @@ dependencies = [
 
 [[package]]
 name = "layer-secrets"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "keyring",
 ]
 
 [[package]]
 name = "layer-speech"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "libloading 0.8.9",
  "ort",
@@ -908,7 +908,7 @@ dependencies = [
 
 [[package]]
 name = "layer-spotify"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "getrandom 0.3.4",
  "reqwest",
@@ -919,7 +919,7 @@ dependencies = [
 
 [[package]]
 name = "layer-twitch"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "futures-util",
  "reqwest",

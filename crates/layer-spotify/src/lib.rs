@@ -381,7 +381,7 @@ impl Spotify {
         let resp = self.call(reqwest::Method::GET, &format!("/tracks/{id}?market=from_token"), None).await?;
         match resp.status().as_u16() {
             400 | 404 => return Err("that track doesn't exist on Spotify".into()),
-            status if !(200..300).contains(&status) => return Err(format!("Spotify returned {status}")),
+            status if !(200..300).contains(&status) => return Err(refused(status, resp).await),
             _ => {}
         }
         let body: Value = resp.json().await.map_err(|_| "Spotify sent something unexpected".to_string())?;
@@ -393,10 +393,12 @@ impl Spotify {
 
     /// Tracks matching what someone said, best first, playable ones only.
     pub async fn search(&self, query: &str, limit: u8) -> Result<Vec<Track>, String> {
-        let path = format!("/search?type=track&market=from_token&limit={}&q={}", limit.clamp(1, 50), encode(query));
+        // No market=from_token: that needs the user-read-private scope, which
+        // nothing else here does, and the search is no worse without it.
+        let path = format!("/search?type=track&limit={}&q={}", limit.clamp(1, 50), encode(query));
         let resp = self.call(reqwest::Method::GET, &path, None).await?;
         if !resp.status().is_success() {
-            return Err(format!("Spotify returned {}", resp.status().as_u16()));
+            return Err(refused(resp.status().as_u16(), resp).await);
         }
         let body: Value = resp.json().await.map_err(|_| "Spotify sent something unexpected".to_string())?;
         Ok(body["tracks"]["items"]
@@ -417,17 +419,61 @@ impl Spotify {
     pub async fn queued(&self, track_id: &str) -> Result<bool, String> {
         let resp = self.call(reqwest::Method::GET, "/me/player/queue", None).await?;
         if !resp.status().is_success() {
-            return Err(format!("Spotify returned {}", resp.status().as_u16()));
+            return Err(refused(resp.status().as_u16(), resp).await);
         }
         let body: Value = resp.json().await.map_err(|_| "Spotify sent something unexpected".to_string())?;
         Ok(body["queue"].as_array().is_some_and(|q| q.iter().any(|t| t["id"] == track_id)))
     }
 
-    /// Plays a track now, in place of whatever was playing.
+    /// Plays a track now, in place of whatever was playing, and checks that
+    /// it did.
+    ///
+    /// Sent to the device that's playing — or, with nothing playing, the one
+    /// used last — as the track's album starting at that track, which is what
+    /// Spotify's own apps send. A bare track ("uris") is accepted by the
+    /// Windows app with a 204 and then not played at all.
     pub async fn play(&self, track_id: &str) -> Result<(), String> {
-        let body = json!({ "uris": [format!("spotify:track:{track_id}")] });
-        let resp = self.call(reqwest::Method::PUT, "/me/player/play", Some(body)).await?;
-        player_result(resp, PLAYBACK).await
+        let device = self.device().await?;
+        let track = self.get(&format!("/tracks/{track_id}?market=from_token")).await;
+        let uri = format!("spotify:track:{track_id}");
+        let body = match track["album"]["uri"].as_str() {
+            Some(album) => json!({ "context_uri": album, "offset": { "uri": uri } }),
+            None => json!({ "uris": [uri] }),
+        };
+        let path = format!("/me/player/play?device_id={}", encode(&device));
+        player_result(self.call(reqwest::Method::PUT, &path, Some(body)).await?, PLAYBACK).await?;
+        // A moment for the player to switch, then ask what it's playing.
+        tokio::time::sleep(Duration::from_millis(900)).await;
+        let now = self.get("/me/player/currently-playing").await;
+        let title = track["name"].as_str().unwrap_or_default();
+        let started = now["is_playing"] == true
+            && (now["item"]["id"] == track_id || (!title.is_empty() && now["item"]["name"].as_str() == Some(title)));
+        if started {
+            Ok(())
+        } else {
+            Err("Spotify took the request but didn't start the song. Try again, or play it once in Spotify itself.".into())
+        }
+    }
+
+    /// The device that's playing, or the one used last.
+    async fn device(&self) -> Result<String, String> {
+        if let Some(id) = self.get("/me/player").await["device"]["id"].as_str() {
+            return Ok(id.to_owned());
+        }
+        self.get("/me/player/devices").await["devices"]
+            .as_array()
+            .and_then(|d| d.first())
+            .and_then(|d| d["id"].as_str())
+            .map(str::to_owned)
+            .ok_or_else(|| "Spotify isn't open anywhere. Open it on your PC or phone, then try again.".into())
+    }
+
+    /// A GET's body, or null when there isn't one to read.
+    async fn get(&self, path: &str) -> Value {
+        match self.call(reqwest::Method::GET, path, None).await {
+            Ok(resp) if resp.status().is_success() => resp.json().await.unwrap_or(Value::Null),
+            _ => Value::Null,
+        }
     }
 
     pub async fn skip(&self) -> Result<(), String> {
@@ -456,7 +502,7 @@ impl Spotify {
         let resp = self.call(reqwest::Method::GET, "/me/player", None).await?;
         match resp.status().as_u16() {
             204 => return Err("nothing is playing on Spotify".into()),
-            status if !(200..300).contains(&status) => return Err(format!("Spotify returned {status}")),
+            status if !(200..300).contains(&status) => return Err(refused(status, resp).await),
             _ => {}
         }
         let body: Value = resp.json().await.map_err(|_| "Spotify sent something unexpected".to_string())?;
@@ -505,7 +551,18 @@ fn refusal(status: u16, reason: &str, message: &str, purpose: &Purpose) -> Strin
         (404, _) | (_, "NO_ACTIVE_DEVICE") => "nothing is playing on Spotify".into(),
         (403, _) if message.contains("scope") => format!("reconnect Spotify to allow {}", purpose.allow),
         (429, _) => "Spotify rate limit reached".into(),
-        _ => format!("Spotify returned {status}"),
+        _ if message.is_empty() => format!("Spotify returned {status}"),
+        _ => format!("Spotify returned {status}: {message}"),
+    }
+}
+
+/// Any other refusal, with Spotify's own reason when it gives one, so a
+/// problem nobody foresaw can still be read.
+async fn refused(status: u16, resp: reqwest::Response) -> String {
+    let body: Value = resp.json().await.unwrap_or(Value::Null);
+    match body["error"]["message"].as_str().filter(|m| !m.is_empty()) {
+        Some(message) => format!("Spotify returned {status}: {message}"),
+        None => format!("Spotify returned {status}"),
     }
 }
 
