@@ -6,17 +6,20 @@ Rust crates.
 | Crate | What |
 |---|---|
 | `layer-speech` | Local speech-to-text: Moonshine, Parakeet, Whisper and Vosk engines, the microphone gate, and installed-model discovery |
+| `layer-twitch` | Twitch: device-code sign-in for a channel and an optional bot, Helix calls, chat replies, channel points, and the EventSub socket |
 
 ## Using it
 
 Apps depend on it by tag:
 
 ```toml
-layer-speech = { git = "https://github.com/ruptz/LayerKit", tag = "v0.1.0" }
+layer-speech = { git = "https://github.com/ruptz/LayerKit", tag = "v0.2.0" }
+layer-twitch = { git = "https://github.com/ruptz/LayerKit", tag = "v0.2.0" }
 ```
 
-and name themselves once at startup, so errors and overrides use the app's
-name:
+### layer-speech
+
+Name the app once at startup, so errors and overrides use its name:
 
 ```rust
 layer_speech::init(layer_speech::App {
@@ -26,12 +29,26 @@ layer_speech::init(layer_speech::App {
 });
 ```
 
+### layer-twitch
+
+The app implements `Host` (its Twitch app's keys, where the sign-in is saved,
+whether it needs events right now) and passes a `Config` (its name, scopes and
+EventSub subscriptions). `Twitch::new` returns the client and a channel of
+`Incoming` events; spawn `twitch.run()` for the socket. Anything not wrapped is
+one `twitch.helix(seat, method, path, body)` away. JammyLayer's
+`src-tauri/src/twitch.rs` is the worked example.
+
+Each app keeps its own sign-in for now.
+
+## Working on it beside an app
+
 To work on LayerKit and an app together, check both out side by side and add
 this to the app's `src-tauri/.cargo/config.toml` (gitignored):
 
 ```toml
 [patch."https://github.com/ruptz/LayerKit"]
 layer-speech = { path = "../../LayerKit/crates/layer-speech" }
+layer-twitch = { path = "../../LayerKit/crates/layer-twitch" }
 ```
 
 While the patch is on, Cargo drops LayerKit's `source` line from the app's
